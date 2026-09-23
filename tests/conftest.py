@@ -1,3 +1,4 @@
+import dataclasses
 import os
 
 import pytest
@@ -8,6 +9,16 @@ from src.ui.driver_factory import build_chrome_driver
 from src.utils.ids import unique_more_info
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "..", "debug_artifacts")
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--headless",
+        action="store",
+        default=None,
+        choices=["true", "false"],
+        help="Override the HEADLESS setting from .env for Selenium UI/E2E tests.",
+    )
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -23,8 +34,12 @@ def pytest_runtest_makereport(item, call):
 
 
 @pytest.fixture(scope="session")
-def config():
-    return load_config()
+def config(request):
+    cfg = load_config()
+    headless_override = request.config.getoption("--headless")
+    if headless_override is not None:
+        cfg = dataclasses.replace(cfg, headless=headless_override == "true")
+    return cfg
 
 
 @pytest.fixture(scope="session")

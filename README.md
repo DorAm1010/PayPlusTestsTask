@@ -72,7 +72,16 @@ Tests are also grouped by directory (`tests/api`, `tests/ui`, `tests/e2e`)
 if you'd rather select that way, e.g. `pytest tests/api`.
 
 Set `HEADLESS=false` in `.env` to watch the browser during UI/E2E runs
-instead of running headless.
+instead of running headless, or override it per-run without touching
+`.env` via a CLI flag:
+
+```bash
+pytest -m ui --headless=false   # watch the browser for this run only
+pytest -m ui --headless=true    # force headless for this run only
+```
+
+The flag takes precedence over `.env` when passed; omit it to fall back to
+the `HEADLESS` value from `.env` (default `true`).
 
 ## Project structure
 
