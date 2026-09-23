@@ -72,13 +72,26 @@ class PaymentPage:
 
         self.wait.until(EC.visibility_of_element_located(self.CARDHOLDER_NAME_INPUT)).send_keys(cardholder_name)
         self.driver.find_element(*self.CARD_NUMBER_INPUT).send_keys(number)
-        Select(self.driver.find_element(*self.CARD_EXPIRY_MONTH_SELECT)).select_by_value(month)
-        Select(self.driver.find_element(*self.CARD_EXPIRY_YEAR_SELECT)).select_by_value(year)
+        self._select_and_verify(self.CARD_EXPIRY_MONTH_SELECT, month)
+        self._select_and_verify(self.CARD_EXPIRY_YEAR_SELECT, year)
         self.driver.find_element(*self.CARD_CVV_INPUT).send_keys(cvv)
         if cardholder_id:
             self.driver.find_element(*self.CARDHOLDER_ID_INPUT).send_keys(cardholder_id)
-        Select(self.driver.find_element(*self.INSTALLMENTS_SELECT)).select_by_value(installments)
+        self._select_and_verify(self.INSTALLMENTS_SELECT, installments)
         return self
+
+    def _select_and_verify(self, locator: Locator, value: str) -> None:
+        """A prior run showed both expiry <select>s flagged with a "required"
+        validation error immediately after submit, despite Select() having
+        already set their values - the page's own Vue app hadn't registered
+        the change yet. Re-selecting and polling the select's own reported
+        value (instead of moving on right after one select_by_value() call)
+        guards against that race.
+        """
+        Select(self.driver.find_element(*locator)).select_by_value(value)
+        self.wait.until(
+            lambda d: Select(d.find_element(*locator)).first_selected_option.get_attribute("value") == value
+        )
 
     def submit(self) -> "PaymentPage":
         self.wait.until(EC.element_to_be_clickable(self.SUBMIT_BUTTON)).click()
