@@ -6,3 +6,4 @@ __pycache__/
 .pytest_cache/
 report.html
 .DS_Store
+debug_artifacts/
