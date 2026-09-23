@@ -37,6 +37,17 @@ the form fields, success detection) is ready to run as-is.
 
 ## Setup
 
+On Debian/Ubuntu, the standard library's `venv` module needs a separate
+system package installed first, or venv creation fails with an
+`ensurepip is not available` error:
+
+```bash
+sudo apt install python3.10-venv
+```
+
+(Not needed on macOS/Windows, or if `python3.10 -m venv` already works for
+you — try the next step first and only run this if it fails.)
+
 ```bash
 git clone <this-repo-url>
 cd PayPlusTestsTask
@@ -57,7 +68,9 @@ PAYPLUS_SECRET_KEY=...
 PAYPLUS_PAYMENT_PAGE_UID=...
 ```
 
-`.env` is gitignored — never commit real credentials.
+`.env` is gitignored — never commit real credentials. Double-check the
+file actually has the real values and not the `your-api-key`-style
+placeholders still in it — every request fails with a `422` otherwise.
 
 ## Running the tests
 
