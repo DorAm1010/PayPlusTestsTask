@@ -94,6 +94,7 @@ class PaymentPage:
         """
         Select(self.driver.find_element(*locator)).select_by_value(value)
         if self._current_value(locator) != value:
+            # Native <select> popup didn't register the click - set it directly instead.
             element = self.driver.find_element(*locator)
             self.driver.execute_script(
                 "arguments[0].value = arguments[1];"
