@@ -34,6 +34,16 @@ class TestGeneratePaymentLink:
         assert body["results"]["status"] == "success"
         assert body["data"]["payment_page_link"]
 
+    @pytest.mark.xfail(
+        reason=(
+            "PayPlus's dev/sandbox PaymentPages/generateLink endpoint currently "
+            "returns a successful response (HTTP 200, results.status='success', "
+            "with a real payment_page_link) for amount: 0 instead of an error, "
+            "contradicting this test's expected behavior. Confirmed via a live "
+            "API call and reported; marked xfail pending a fix on PayPlus's side."
+        ),
+        strict=True,
+    )
     def test_zero_amount_returns_error(self, api_client, config, more_info):
         payload = generate_link_payload(config.payment_page_uid, amount=0, more_info=more_info)
 
