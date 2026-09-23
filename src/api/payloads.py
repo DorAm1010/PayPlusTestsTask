@@ -27,7 +27,10 @@ def generate_link_payload(
         "currency_code": currency_code,
         "sendEmailApproval": False,
         "sendEmailFailure": False,
-        # English UI text makes success/error text assertions deterministic.
+        # Requested so the page renders in English, but this wasn't confirmed
+        # to take effect against the real sandbox page (it still rendered
+        # dir="rtl" lang="he") - kept anyway since it's harmless, but the
+        # Selenium locators are ID-based and don't depend on it.
         "language_code": "en",
     }
     if more_info:

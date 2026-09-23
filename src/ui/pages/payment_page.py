@@ -1,39 +1,45 @@
 """Page object for the PayPlus hosted payment page
 (https://paymentsdev.payplus.co.il/<page_request_uid>).
 
+Locators below were captured from the real rendered DOM of a live sandbox
+payment page (the "default5" template) - the card form is NOT inside an
+iframe, it sits directly in the main document.
+
 *** KNOWN GAP - READ BEFORE RUNNING UI/E2E TESTS ***
-This project was built without network access to the live payment page (see
-README "Known gaps"), so the locators below are PLACEHOLDERS and have not
-been verified against the real DOM. Before running any ui/e2e test:
+The post-submit success/error DOM was not available when this was written,
+so SUCCESS_INDICATOR and ERROR_INDICATOR are still placeholders. Before
+running any ui/e2e test:
 
-  1. Generate a payment link (e.g. run one api test, or call the API by hand)
-     and open it in Chrome.
-  2. Right-click each field (card number, expiry, CVV, submit button, the
-     success message) -> Inspect, and note its id/name/CSS selector.
-  3. Replace every TODO_* value below with the real one. If the card form is
-     NOT inside an iframe, set CARD_FORM_IFRAME = None.
+  1. Submit a real payment with the successful sandbox card and inspect the
+     resulting DOM (right-click the success message -> Inspect).
+  2. Replace SUCCESS_INDICATOR (and ERROR_INDICATOR, using the rejected
+     sandbox card) below with the real selectors.
 
-Everything else in this class (waits, flow, structure) is ready to use as-is
-once the locators are filled in.
+Everything else (field IDs, waits, page flow) is verified against the real
+page and ready to use as-is.
 """
 
-from typing import Optional, Tuple
+from typing import Tuple
 
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
 
 Locator = Tuple[str, str]
 
 
 class PaymentPage:
-    # --- Locators: verify against the real page (see module docstring) ---
-    CARD_FORM_IFRAME: Optional[Locator] = (By.CSS_SELECTOR, "TODO_iframe_selector")
-    CARD_NUMBER_INPUT: Locator = (By.ID, "TODO_card_number_id")
-    CARD_EXPIRY_INPUT: Locator = (By.ID, "TODO_card_expiry_id")
-    CARD_CVV_INPUT: Locator = (By.ID, "TODO_card_cvv_id")
-    CARDHOLDER_NAME_INPUT: Optional[Locator] = (By.ID, "TODO_cardholder_name_id")
-    SUBMIT_BUTTON: Locator = (By.CSS_SELECTOR, "TODO_submit_button_selector")
+    CARDHOLDER_NAME_INPUT: Locator = (By.ID, "card-holder-name")
+    CARD_NUMBER_INPUT: Locator = (By.ID, "credit-card-input")
+    CARD_EXPIRY_MONTH_SELECT: Locator = (By.ID, "expiration-date-month")
+    CARD_EXPIRY_YEAR_SELECT: Locator = (By.ID, "expiration-date-year")
+    CARD_CVV_INPUT: Locator = (By.ID, "cvv-input")
+    CARDHOLDER_ID_INPUT: Locator = (By.ID, "holder-identifier")
+    INSTALLMENTS_SELECT: Locator = (By.ID, "payments")
+    SUBMIT_BUTTON: Locator = (By.ID, "credit-card-submit")
+
+    # TODO: verify against the real post-submit page (see module docstring)
     SUCCESS_INDICATOR: Locator = (By.CSS_SELECTOR, "TODO_success_message_selector")
     ERROR_INDICATOR: Locator = (By.CSS_SELECTOR, "TODO_error_message_selector")
 
@@ -45,28 +51,28 @@ class PaymentPage:
         self.driver.get(url)
         return self
 
-    def _enter_card_frame(self) -> None:
-        if self.CARD_FORM_IFRAME is None:
-            return
-        frame = self.wait.until(EC.presence_of_element_located(self.CARD_FORM_IFRAME))
-        self.driver.switch_to.frame(frame)
-
-    def _exit_card_frame(self) -> None:
-        if self.CARD_FORM_IFRAME is not None:
-            self.driver.switch_to.default_content()
-
     def fill_card_details(
-        self, number: str, expiry: str, cvv: str, cardholder_name: str = "QA Automation"
+        self,
+        number: str,
+        expiry: str,
+        cvv: str,
+        cardholder_name: str = "QA Automation",
+        cardholder_id: str = "",
+        installments: str = "1",
     ) -> "PaymentPage":
-        self._enter_card_frame()
-        try:
-            self.wait.until(EC.visibility_of_element_located(self.CARD_NUMBER_INPUT)).send_keys(number)
-            self.driver.find_element(*self.CARD_EXPIRY_INPUT).send_keys(expiry)
-            self.driver.find_element(*self.CARD_CVV_INPUT).send_keys(cvv)
-            if self.CARDHOLDER_NAME_INPUT is not None:
-                self.driver.find_element(*self.CARDHOLDER_NAME_INPUT).send_keys(cardholder_name)
-        finally:
-            self._exit_card_frame()
+        """expiry is "MM/YY" (e.g. "05/30"), matching the two expiry
+        <select> elements' option values on the real page.
+        """
+        month, year = expiry.split("/")
+
+        self.wait.until(EC.visibility_of_element_located(self.CARDHOLDER_NAME_INPUT)).send_keys(cardholder_name)
+        self.driver.find_element(*self.CARD_NUMBER_INPUT).send_keys(number)
+        Select(self.driver.find_element(*self.CARD_EXPIRY_MONTH_SELECT)).select_by_value(month)
+        Select(self.driver.find_element(*self.CARD_EXPIRY_YEAR_SELECT)).select_by_value(year)
+        self.driver.find_element(*self.CARD_CVV_INPUT).send_keys(cvv)
+        if cardholder_id:
+            self.driver.find_element(*self.CARDHOLDER_ID_INPUT).send_keys(cardholder_id)
+        Select(self.driver.find_element(*self.INSTALLMENTS_SELECT)).select_by_value(installments)
         return self
 
     def submit(self) -> "PaymentPage":

@@ -6,24 +6,29 @@ Selenium, and confirming the resulting transaction via the API.
 
 ## ⚠️ Before running the UI or E2E tests
 
-This project was built in an environment with no network access to the
-live PayPlus payment page, so the Selenium locators in
-[`src/ui/pages/payment_page.py`](src/ui/pages/payment_page.py) are
-**placeholders** (`TODO_...`) and have not been verified against the real
-DOM. The API tests (Task 2) do not need this and can be run as-is.
+The Selenium locators in
+[`src/ui/pages/payment_page.py`](src/ui/pages/payment_page.py) for the
+**payment form itself** (cardholder name, card number, expiry month/year,
+CVV, the Israeli ID field, installments, submit button) were captured from
+the real rendered DOM of a live sandbox payment page and are verified —
+there is no iframe around them.
 
-To fill them in:
+What's still a placeholder: `SUCCESS_INDICATOR` and `ERROR_INDICATOR`,
+since the post-submit DOM (what the page looks like after a payment
+succeeds or is rejected) wasn't available while building this. To fill
+them in:
 
 1. Run one API test (or call `PaymentPages/generateLink` manually) to get a
-   real payment link, and open it in Chrome.
-2. Right-click each field — card number, expiry, CVV, cardholder name (if
-   present), the submit button, and the success message — and choose
-   **Inspect** to find its `id`/`name`/CSS selector.
-3. Replace the matching `TODO_...` value in `PaymentPage`. If the card form
-   is **not** inside an iframe, set `CARD_FORM_IFRAME = None`.
+   real payment link, open it in Chrome, and submit a payment with the
+   successful sandbox card.
+2. Right-click the success message and choose **Inspect** to find its
+   `id`/CSS selector; do the same for the rejected sandbox card to get the
+   error message's selector.
+3. Replace `SUCCESS_INDICATOR`/`ERROR_INDICATOR` in `PaymentPage` with the
+   real selectors.
 
-Everything else (waits, page flow, the E2E correlation logic) is ready to
-run once those locators are in place.
+Everything else (waits, page flow, the E2E correlation logic, the rest of
+the form fields) is ready to run as-is.
 
 ## Requirements
 
@@ -100,9 +105,22 @@ tests/
 - **Error assertions (Task 2, tests 2 & 3)**: the docs only give one
   explicit error example (422 `can-not-find-payment-page`, for an invalid
   `payment_page_uid`) and don't document a specific error body for every
-  invalid-input case (e.g. `amount: 0`). Both error tests assert the
-  general contract instead: a non-2xx HTTP status, or a JSON body whose
-  `results.status` is not `"success"`.
+  invalid-input case. Both error tests assert the general contract: a
+  non-2xx HTTP status, or a JSON body whose `results.status` is not
+  `"success"`.
+- **`amount: 0` is accepted by the real API, not rejected**: confirmed via
+  a live call — `PaymentPages/generateLink` returns a normal 200/success
+  response with a real `payment_page_link` for `amount: 0`. This
+  contradicts the task's stated expectation, so `test_zero_amount_returns_error`
+  is marked `@pytest.mark.xfail(strict=True, ...)` with the confirmed
+  response documented in the reason string, rather than forcing a false
+  assertion to pass. `strict=True` means if PayPlus's validation is ever
+  fixed, the test flips to a reported failure (XPASS) instead of silently
+  staying green.
+- **Cardholder ID field**: the real payment page has an undocumented
+  `holder-identifier` field (an Israeli ID number) that validates its
+  checksum client-side. `src/utils/cards.py` includes a checksum-valid
+  dummy ID (`DUMMY_CARDHOLDER_ID`) used to fill it.
 - **Task 4 transaction lookup**: `PaymentPages/generateLink` only returns a
   `page_request_uid`, never a `transaction_uid`, and there's no reliable
   way to scrape a transaction id off the payment page. Instead, each test
@@ -112,11 +130,14 @@ tests/
 - **Emails disabled**: `sendEmailApproval` / `sendEmailFailure` are set to
   `false` in every generated request so test runs don't trigger real
   emails.
-- **Language**: `language_code` is set to `en` so the payment page renders
-  in English, making success/error text assertions deterministic.
+- **Language**: `language_code` is requested as `en`, but this wasn't
+  confirmed to change the rendered page (it still came back `dir="rtl"
+  lang="he"` in testing). Harmless either way since the Selenium locators
+  are ID-based, not text-based.
 - **MyAccount credentials**: the task lists a MyAccount URL/email/password,
   but none of the 4 required tests need a MyAccount (merchant dashboard)
   login — everything goes through the payment link and the two documented
   API endpoints. These credentials are unused by this suite.
-- **Selenium locators are placeholders** — see the warning at the top of
-  this README and the docstring in `src/ui/pages/payment_page.py`.
+- **Success/error message locators are placeholders** — see the warning at
+  the top of this README and the docstring in
+  `src/ui/pages/payment_page.py`.
