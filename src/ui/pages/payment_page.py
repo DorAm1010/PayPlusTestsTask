@@ -81,24 +81,24 @@ class PaymentPage:
         return self
 
     def _select_and_verify(self, locator: Locator, value: str) -> None:
-        """Tries a real Select() click first - closer to what a user does -
-        then falls back to setting the value via JS and firing input/change
-        by hand if that didn't stick. Select() alone, and separately a
-        manual click-select-then-click-option, were both seen popping open
+        """Does a real Select() click - closer to what a user does - then
+        unconditionally also sets the value via JS and fires input/change
+        by hand, rather than only doing the JS part when Select() looks
+        like it didn't stick. Select() alone, and separately a manual
+        click-select-then-click-option, were both seen popping open
         Chrome's native dropdown for these elements and closing it again
-        before the click landed; this Select()-then-JS-fallback
-        combination is the one that has actually gotten a value to stick.
+        before the click landed; running both unconditionally is the
+        combination that's actually gotten a value to stick.
         """
         Select(self.driver.find_element(*locator)).select_by_value(value)
-        if self._current_value(locator) != value:
-            element = self.driver.find_element(*locator)
-            self.driver.execute_script(
-                "arguments[0].value = arguments[1];"
-                "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));"
-                "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
-                element,
-                value,
-            )
+        element = self.driver.find_element(*locator)
+        self.driver.execute_script(
+            "arguments[0].value = arguments[1];"
+            "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));"
+            "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+            element,
+            value,
+        )
         self.wait.until(lambda d: self._current_value(locator) == value)
 
     def _current_value(self, locator: Locator) -> str:
