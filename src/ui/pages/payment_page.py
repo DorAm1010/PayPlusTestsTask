@@ -82,21 +82,30 @@ class PaymentPage:
 
     def _select_and_verify(self, locator: Locator, value: str) -> None:
         """Clicks the <select> to open it, then clicks the matching
-        <option> directly, instead of Select().select_by_value() alone -
-        Select() was seen popping open Chrome's native dropdown for these
-        elements and closing it again before the option click landed.
-        Explicitly waiting for the select to be clickable and opening it
-        first (verified working against the real page via
-        scripts/manual_debug_dropdown.py) avoids that race.
+        <option> - located via a fresh, absolute selector queried straight
+        from the driver on every retry, not a relative find off the
+        WebElement reference from the earlier click. The page's own JS
+        can replace that select's DOM node in between (e.g. while
+        reacting to the card number field), which would make a relative
+        find on the old reference fail differently than expected; an
+        absolute, ID-scoped selector can't go stale that way. Verified
+        working against the real page via scripts/manual_debug_dropdown.py
+        before bringing it here.
         """
-        select_element = self.wait.until(EC.element_to_be_clickable(locator))
-        select_element.click()
+        self.wait.until(EC.element_to_be_clickable(locator)).click()
 
-        option = self.wait.until(lambda d: select_element.find_element(By.CSS_SELECTOR, f"option[value='{value}']"))
+        option = self.wait.until(EC.presence_of_element_located(self._option_locator(locator, value)))
         self.driver.execute_script("arguments[0].scrollIntoView({block: 'nearest'});", option)
         option.click()
 
         self.wait.until(lambda d: self._current_value(locator) == value)
+
+    @staticmethod
+    def _option_locator(select_locator: Locator, value: str) -> Locator:
+        by, selector = select_locator
+        if by != By.ID:
+            raise ValueError(f"_option_locator only supports By.ID select locators, got {by!r}")
+        return (By.CSS_SELECTOR, f"#{selector} option[value='{value}']")
 
     def _current_value(self, locator: Locator) -> str:
         return Select(self.driver.find_element(*locator)).first_selected_option.get_attribute("value")
