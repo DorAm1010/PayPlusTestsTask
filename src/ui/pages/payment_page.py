@@ -81,24 +81,30 @@ class PaymentPage:
         return self
 
     def _select_and_verify(self, locator: Locator, value: str) -> None:
-        """Sets the <select>'s value via JS and fires `change` by hand,
-        instead of Select().select_by_value(): a real (non-headless) run
-        showed that clicking through Select() pops open Chrome's native,
-        OS-rendered dropdown for these elements, which was closing again
-        before the option click landed - visibly opening and immediately
-        closing with nothing selected, and the page's own Vue app then
-        flagging the field as empty/required on submit.
+        """Tries a real Select() click first - closer to what a user does -
+        then falls back to setting the value via JS and firing `change` by
+        hand if that didn't stick. A real (non-headless) run showed
+        Select() popping open Chrome's native, OS-rendered dropdown for
+        these elements and closing it again before the option click
+        landed - visibly opening and immediately closing with nothing
+        selected, and the page's own Vue app then flagging the field as
+        empty/required on submit. That's a native-<select> WebDriver
+        quirk, not something every run hits, so the real click stays the
+        default path and the JS fallback only engages when it's needed.
         """
-        element = self.driver.find_element(*locator)
-        self.driver.execute_script(
-            "arguments[0].value = arguments[1];"
-            "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
-            element,
-            value,
-        )
-        self.wait.until(
-            lambda d: Select(d.find_element(*locator)).first_selected_option.get_attribute("value") == value
-        )
+        Select(self.driver.find_element(*locator)).select_by_value(value)
+        if self._current_value(locator) != value:
+            element = self.driver.find_element(*locator)
+            self.driver.execute_script(
+                "arguments[0].value = arguments[1];"
+                "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+                element,
+                value,
+            )
+        self.wait.until(lambda d: self._current_value(locator) == value)
+
+    def _current_value(self, locator: Locator) -> str:
+        return Select(self.driver.find_element(*locator)).first_selected_option.get_attribute("value")
 
     def submit(self) -> "PaymentPage":
         self.wait.until(EC.element_to_be_clickable(self.SUBMIT_BUTTON)).click()
