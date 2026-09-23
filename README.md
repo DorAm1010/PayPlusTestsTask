@@ -146,6 +146,17 @@ tests/
   but none of the 4 required tests need a MyAccount (merchant dashboard)
   login — everything goes through the payment link and the two documented
   API endpoints. These credentials are unused by this suite.
+- **Expiry month/year selection runs both Select() and a JS fallback,
+  unconditionally, every time**: the real payment page's native
+  `<select>` dropdowns for expiration month/year were unreliable through
+  Selenium alone — verified across several real runs that Selenium's
+  `Select().select_by_value()`, and separately a manual
+  click-select-then-click-option sequence, would both pop open the
+  browser's native dropdown and close it again without the page's own JS
+  registering the change (the field stayed empty/required on submit).
+  Also setting the value directly via JS and dispatching `input`/`change`
+  events on the same call is what reliably gets the selection to stick;
+  see `PaymentPage._select_and_verify()`.
 - **Success message locator is verified, error locator is a placeholder** —
   `SUCCESS_INDICATOR` was captured from a real post-submit page and is
   ready to use; `ERROR_INDICATOR` still needs a rejected-payment DOM
