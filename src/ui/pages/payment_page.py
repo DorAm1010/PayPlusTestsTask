@@ -3,20 +3,25 @@
 
 Locators below were captured from the real rendered DOM of a live sandbox
 payment page (the "default5" template) - the card form is NOT inside an
-iframe, it sits directly in the main document.
+iframe, it sits directly in the main document. The post-submit "Payment
+Successful" page (the redirect target after a successful sandbox payment)
+was also captured from a real run and SUCCESS_INDICATOR is verified against
+it: `.thank-you-page-container` wraps the whole confirmation view (check
+mark, amount, transaction number, etc.) and is a real author-assigned CSS
+class, unlike the `data-v-<hash>` scoped-style attributes on the same
+elements, which are build artifacts that change every Vue/Quasar rebuild
+and are deliberately not used as selectors here.
 
 *** KNOWN GAP - READ BEFORE RUNNING UI/E2E TESTS ***
-The post-submit success/error DOM was not available when this was written,
-so SUCCESS_INDICATOR and ERROR_INDICATOR are still placeholders. Before
-running any ui/e2e test:
+No rejected-payment DOM sample was available when this was written, so
+ERROR_INDICATOR is still a placeholder. To fill it in: submit a payment
+with the rejected sandbox card (src/utils/cards.py REJECTED_CARD) and
+inspect the resulting DOM, then replace ERROR_INDICATOR below with the
+real selector. Nothing in the 4 required tests exercises is_payment_rejected(),
+so this gap doesn't block running the suite.
 
-  1. Submit a real payment with the successful sandbox card and inspect the
-     resulting DOM (right-click the success message -> Inspect).
-  2. Replace SUCCESS_INDICATOR (and ERROR_INDICATOR, using the rejected
-     sandbox card) below with the real selectors.
-
-Everything else (field IDs, waits, page flow) is verified against the real
-page and ready to use as-is.
+Everything else (field IDs, waits, page flow, the success indicator) is
+verified against the real page and ready to use as-is.
 """
 
 from typing import Tuple
@@ -39,8 +44,8 @@ class PaymentPage:
     INSTALLMENTS_SELECT: Locator = (By.ID, "payments")
     SUBMIT_BUTTON: Locator = (By.ID, "credit-card-submit")
 
-    # TODO: verify against the real post-submit page (see module docstring)
-    SUCCESS_INDICATOR: Locator = (By.CSS_SELECTOR, "TODO_success_message_selector")
+    SUCCESS_INDICATOR: Locator = (By.CSS_SELECTOR, ".thank-you-page-container")
+    # TODO: verify against a real rejected-payment page (see module docstring)
     ERROR_INDICATOR: Locator = (By.CSS_SELECTOR, "TODO_error_message_selector")
 
     def __init__(self, driver, timeout: int = 20):

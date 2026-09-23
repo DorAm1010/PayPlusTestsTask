@@ -9,26 +9,25 @@ Selenium, and confirming the resulting transaction via the API.
 The Selenium locators in
 [`src/ui/pages/payment_page.py`](src/ui/pages/payment_page.py) for the
 **payment form itself** (cardholder name, card number, expiry month/year,
-CVV, the Israeli ID field, installments, submit button) were captured from
-the real rendered DOM of a live sandbox payment page and are verified —
-there is no iframe around them.
+CVV, the Israeli ID field, installments, submit button) and for the
+**post-submit success page** (`SUCCESS_INDICATOR`) were captured from the
+real rendered DOM of a live sandbox payment run and are verified — there is
+no iframe around the form.
 
-What's still a placeholder: `SUCCESS_INDICATOR` and `ERROR_INDICATOR`,
-since the post-submit DOM (what the page looks like after a payment
-succeeds or is rejected) wasn't available while building this. To fill
-them in:
+What's still a placeholder: `ERROR_INDICATOR`, since a rejected-payment DOM
+sample wasn't available while building this (none of the 4 required tests
+exercise `is_payment_rejected()`, so this doesn't block running the suite).
+To fill it in:
 
 1. Run one API test (or call `PaymentPages/generateLink` manually) to get a
    real payment link, open it in Chrome, and submit a payment with the
-   successful sandbox card.
-2. Right-click the success message and choose **Inspect** to find its
-   `id`/CSS selector; do the same for the rejected sandbox card to get the
-   error message's selector.
-3. Replace `SUCCESS_INDICATOR`/`ERROR_INDICATOR` in `PaymentPage` with the
-   real selectors.
+   **rejected** sandbox card (`REJECTED_CARD` in `src/utils/cards.py`).
+2. Right-click the resulting error message and choose **Inspect** to find
+   its CSS selector.
+3. Replace `ERROR_INDICATOR` in `PaymentPage` with the real selector.
 
 Everything else (waits, page flow, the E2E correlation logic, the rest of
-the form fields) is ready to run as-is.
+the form fields, success detection) is ready to run as-is.
 
 ## Requirements
 
@@ -138,6 +137,8 @@ tests/
   but none of the 4 required tests need a MyAccount (merchant dashboard)
   login — everything goes through the payment link and the two documented
   API endpoints. These credentials are unused by this suite.
-- **Success/error message locators are placeholders** — see the warning at
-  the top of this README and the docstring in
+- **Success message locator is verified, error locator is a placeholder** —
+  `SUCCESS_INDICATOR` was captured from a real post-submit page and is
+  ready to use; `ERROR_INDICATOR` still needs a rejected-payment DOM
+  sample. See the warning at the top of this README and the docstring in
   `src/ui/pages/payment_page.py`.
