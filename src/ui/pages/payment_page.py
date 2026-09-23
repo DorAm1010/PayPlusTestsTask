@@ -81,14 +81,21 @@ class PaymentPage:
         return self
 
     def _select_and_verify(self, locator: Locator, value: str) -> None:
-        """A prior run showed both expiry <select>s flagged with a "required"
-        validation error immediately after submit, despite Select() having
-        already set their values - the page's own Vue app hadn't registered
-        the change yet. Re-selecting and polling the select's own reported
-        value (instead of moving on right after one select_by_value() call)
-        guards against that race.
+        """Sets the <select>'s value via JS and fires `change` by hand,
+        instead of Select().select_by_value(): a real (non-headless) run
+        showed that clicking through Select() pops open Chrome's native,
+        OS-rendered dropdown for these elements, which was closing again
+        before the option click landed - visibly opening and immediately
+        closing with nothing selected, and the page's own Vue app then
+        flagging the field as empty/required on submit.
         """
-        Select(self.driver.find_element(*locator)).select_by_value(value)
+        element = self.driver.find_element(*locator)
+        self.driver.execute_script(
+            "arguments[0].value = arguments[1];"
+            "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
+            element,
+            value,
+        )
         self.wait.until(
             lambda d: Select(d.find_element(*locator)).first_selected_option.get_attribute("value") == value
         )
