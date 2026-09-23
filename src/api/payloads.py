@@ -5,11 +5,22 @@ it actually wants to exercise.
 
 from typing import Optional
 
+FIELD_PAYMENT_PAGE_UID = "payment_page_uid"
+FIELD_AMOUNT = "amount"
+FIELD_CURRENCY_CODE = "currency_code"
+FIELD_SEND_EMAIL_APPROVAL = "sendEmailApproval"
+FIELD_SEND_EMAIL_FAILURE = "sendEmailFailure"
+FIELD_LANGUAGE_CODE = "language_code"
+FIELD_MORE_INFO = "more_info"
+
+DEFAULT_CURRENCY_CODE = "ILS"
+DEFAULT_LANGUAGE_CODE = "en"
+
 
 def generate_link_payload(
     payment_page_uid: str,
     amount,
-    currency_code: str = "ILS",
+    currency_code: str = DEFAULT_CURRENCY_CODE,
     more_info: Optional[str] = None,
     **overrides,
 ) -> dict:
@@ -22,18 +33,18 @@ def generate_link_payload(
     from the returned dict to test a missing-field scenario.
     """
     payload = {
-        "payment_page_uid": payment_page_uid,
-        "amount": amount,
-        "currency_code": currency_code,
-        "sendEmailApproval": False,
-        "sendEmailFailure": False,
+        FIELD_PAYMENT_PAGE_UID: payment_page_uid,
+        FIELD_AMOUNT: amount,
+        FIELD_CURRENCY_CODE: currency_code,
+        FIELD_SEND_EMAIL_APPROVAL: False,
+        FIELD_SEND_EMAIL_FAILURE: False,
         # Requested so the page renders in English, but this wasn't confirmed
         # to take effect against the real sandbox page (it still rendered
         # dir="rtl" lang="he") - kept anyway since it's harmless, but the
         # Selenium locators are ID-based and don't depend on it.
-        "language_code": "en",
+        FIELD_LANGUAGE_CODE: DEFAULT_LANGUAGE_CODE,
     }
     if more_info:
-        payload["more_info"] = more_info
+        payload[FIELD_MORE_INFO] = more_info
     payload.update(overrides)
     return payload

@@ -84,6 +84,18 @@ pytest -m e2e            # Task 4 only — combined API + Selenium flow
 Tests are also grouped by directory (`tests/api`, `tests/ui`, `tests/e2e`)
 if you'd rather select that way, e.g. `pytest tests/api`.
 
+**Retries and parallel execution**: `pytest-rerunfailures` and
+`pytest-xdist` are included for handling network/browser flakiness and
+speeding up runs:
+
+```bash
+pytest --reruns 2 --reruns-delay 2   # retry a failed test up to 2 times, waiting 2s between
+pytest -n auto                        # run tests in parallel across available CPU cores
+```
+
+Neither is applied by default — the suite runs single-pass and
+sequentially unless you pass these flags.
+
 Set `HEADLESS=false` in `.env` to watch the browser during UI/E2E runs
 instead of running headless, or override it per-run without touching
 `.env` via a CLI flag:
@@ -160,16 +172,14 @@ tests/
   login — everything goes through the payment link and the two documented
   API endpoints. These credentials are unused by this suite.
 - **Expiry month/year selection runs both Select() and a JS fallback,
-  unconditionally, every time**: the real payment page's native
-  `<select>` dropdowns for expiration month/year were unreliable through
-  Selenium alone — verified across several real runs that Selenium's
-  `Select().select_by_value()`, and separately a manual
-  click-select-then-click-option sequence, would both pop open the
-  browser's native dropdown and close it again without the page's own JS
-  registering the change (the field stayed empty/required on submit).
-  Also setting the value directly via JS and dispatching `input`/`change`
-  events on the same call is what reliably gets the selection to stick;
-  see `PaymentPage._select_and_verify()`.
+  unconditionally, every time**: the payment page's native `<select>`
+  dropdowns for expiration month/year are unreliable through Selenium's
+  `Select().select_by_value()` alone — Chrome can pop open the browser's
+  native dropdown for a WebDriver click and close it again before the
+  option click registers, silently leaving the field empty/required on
+  submit. Also setting the value directly via JS and dispatching
+  `input`/`change` events on the same call is what reliably gets the
+  selection to stick; see `PaymentPage._select_and_verify()`.
 - **Success message locator is verified, error locator is a placeholder** —
   `SUCCESS_INDICATOR` was captured from a real post-submit page and is
   ready to use; `ERROR_INDICATOR` still needs a rejected-payment DOM

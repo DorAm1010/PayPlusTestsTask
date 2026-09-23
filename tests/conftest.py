@@ -10,13 +10,17 @@ from src.utils.ids import unique_more_info
 
 ARTIFACTS_DIR = os.path.join(os.path.dirname(__file__), "..", "debug_artifacts")
 
+HEADLESS_CLI_OPTION = "--headless"
+HEADLESS_CHOICE_TRUE = "true"
+HEADLESS_CHOICE_FALSE = "false"
+
 
 def pytest_addoption(parser):
     parser.addoption(
-        "--headless",
+        HEADLESS_CLI_OPTION,
         action="store",
         default=None,
-        choices=["true", "false"],
+        choices=[HEADLESS_CHOICE_TRUE, HEADLESS_CHOICE_FALSE],
         help="Override the HEADLESS setting from .env for Selenium UI/E2E tests.",
     )
 
@@ -35,10 +39,13 @@ def pytest_runtest_makereport(item, call):
 
 @pytest.fixture(scope="session")
 def config(request):
+    """Loads Config from .env, then applies --headless if it was passed on
+    the command line (takes precedence over the .env HEADLESS value).
+    """
     cfg = load_config()
-    headless_override = request.config.getoption("--headless")
+    headless_override = request.config.getoption(HEADLESS_CLI_OPTION)
     if headless_override is not None:
-        cfg = dataclasses.replace(cfg, headless=headless_override == "true")
+        cfg = dataclasses.replace(cfg, headless=headless_override == HEADLESS_CHOICE_TRUE)
     return cfg
 
 
@@ -49,6 +56,11 @@ def api_client(config):
 
 @pytest.fixture
 def driver(request, config):
+    """A function-scoped Chrome WebDriver. On teardown, if the test it
+    served failed, saves a screenshot and the page source to
+    debug_artifacts/ (gitignored) before quitting, to help diagnose
+    UI/E2E failures without a live browser to look at.
+    """
     drv = build_chrome_driver(headless=config.headless)
     yield drv
 

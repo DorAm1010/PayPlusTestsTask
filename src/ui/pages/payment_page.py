@@ -1,12 +1,12 @@
 """Page object for the PayPlus hosted payment page
 (https://paymentsdev.payplus.co.il/<page_request_uid>).
 
-Locators below were captured from the real rendered DOM of a live sandbox
+Locators below were captured from the rendered DOM of a live sandbox
 payment page (the "default5" template) - the card form is NOT inside an
 iframe, it sits directly in the main document. The post-submit "Payment
 Successful" page (the redirect target after a successful sandbox payment)
-was also captured from a real run and SUCCESS_INDICATOR is verified against
-it: `.thank-you-page-container` wraps the whole confirmation view (check
+was captured the same way, and SUCCESS_INDICATOR is set against it:
+`.thank-you-page-container` wraps the whole confirmation view (check
 mark, amount, transaction number, etc.) and is a real author-assigned CSS
 class, unlike the `data-v-<hash>` scoped-style attributes on the same
 elements, which are build artifacts that change every Vue/Quasar rebuild
@@ -21,7 +21,7 @@ real selector. Nothing in the 4 required tests exercises is_payment_rejected(),
 so this gap doesn't block running the suite.
 
 Everything else (field IDs, waits, page flow, the success indicator) is
-verified against the real page and ready to use as-is.
+ready to use as-is.
 """
 
 from typing import Tuple
@@ -32,6 +32,28 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.support.ui import WebDriverWait
 
 Locator = Tuple[str, str]
+
+DEFAULT_CARDHOLDER_NAME = "QA Automation"
+DEFAULT_INSTALLMENTS = "1"
+
+# Sets a form element's value directly and fires the events a real user
+# interaction would - see _set_value_via_js() below for why this exists.
+_SET_VALUE_AND_DISPATCH_EVENTS_JS = (
+    "arguments[0].value = arguments[1];"
+    "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));"
+    "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));"
+)
+
+
+def _set_value_via_js(driver, element, value: str) -> None:
+    """Sets a form element's value directly via JavaScript and fires the
+    native `input`/`change` events by hand. Chrome can pop open a native
+    <select>'s OS-rendered dropdown on a WebDriver click and close it
+    again before the option click registers, silently leaving the field
+    unset; this sets the value and its events without going through that
+    dropdown at all.
+    """
+    driver.execute_script(_SET_VALUE_AND_DISPATCH_EVENTS_JS, element, value)
 
 
 class PaymentPage:
@@ -61,9 +83,9 @@ class PaymentPage:
         number: str,
         expiry: str,
         cvv: str,
-        cardholder_name: str = "QA Automation",
+        cardholder_name: str = DEFAULT_CARDHOLDER_NAME,
         cardholder_id: str = "",
-        installments: str = "1",
+        installments: str = DEFAULT_INSTALLMENTS,
     ) -> "PaymentPage":
         """expiry is "MM/YY" (e.g. "05/30"), matching the two expiry
         <select> elements' option values on the real page.
@@ -81,27 +103,20 @@ class PaymentPage:
         return self
 
     def _select_and_verify(self, locator: Locator, value: str) -> None:
-        """Does a real Select() click - closer to what a user does - then
-        unconditionally also sets the value via JS and fires input/change
-        by hand, rather than only doing the JS part when Select() looks
-        like it didn't stick. Select() alone, and separately a manual
-        click-select-then-click-option, were both seen popping open
-        Chrome's native dropdown for these elements and closing it again
-        before the click landed; running both unconditionally is the
-        combination that's actually gotten a value to stick.
+        """Selects an option two ways and confirms the result: a real
+        Select() click (the closest thing to how a user interacts with
+        the dropdown), then, unconditionally, also setting the value
+        directly via JS (see _set_value_via_js). Running both every time,
+        rather than only falling back to JS when Select() looks like it
+        didn't register, is what reliably gets a value to stick on this
+        page's native <select> elements.
         """
         Select(self.driver.find_element(*locator)).select_by_value(value)
-        element = self.driver.find_element(*locator)
-        self.driver.execute_script(
-            "arguments[0].value = arguments[1];"
-            "arguments[0].dispatchEvent(new Event('input', { bubbles: true }));"
-            "arguments[0].dispatchEvent(new Event('change', { bubbles: true }));",
-            element,
-            value,
-        )
+        _set_value_via_js(self.driver, self.driver.find_element(*locator), value)
         self.wait.until(lambda d: self._current_value(locator) == value)
 
     def _current_value(self, locator: Locator) -> str:
+        """The currently selected option's value for the <select> at locator."""
         return Select(self.driver.find_element(*locator)).first_selected_option.get_attribute("value")
 
     def submit(self) -> "PaymentPage":
